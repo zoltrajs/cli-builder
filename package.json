@@ -25,7 +25,8 @@
     "start": "node dist/cli.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "publish": "npm publish --provenance=false --access public"
   },
   "keywords": [
     "cli",
