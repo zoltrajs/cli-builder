@@ -3,10 +3,24 @@
   "version": "0.1.0",
   "description": "A fast and lightweight CLI builder for TypeScript applications",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build": "npm run build:cjs && npm run build:esm && npm run fix:esm",
+    "fix:esm": "node scripts/fix-esm-extensions.js",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "jest",
@@ -17,8 +31,7 @@
     "cli",
     "typescript",
     "builder",
-    "command-line",
-    "fast"
+    "command-line"
   ],
   "author": "Kingrashy12",
   "license": "MIT",

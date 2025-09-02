@@ -28,7 +28,7 @@ const cli = createCLI("myapp", "1.0.0", "My awesome CLI app");
 cli.option("verbose", "Enable verbose output", { alias: "v", type: "boolean" });
 
 // Add commands
-const greetCmd = cli
+cli
   .command("greet", "Greet someone")
   .argument("name", "Name to greet", { required: true })
   .option("style", "Greeting style", {
@@ -38,10 +38,8 @@ const greetCmd = cli
   .action(async (args, options) => {
     const greeting = options.style === "formal" ? "Hello" : "Hey";
     console.log(`${greeting}, ${args[0]}!`);
-  });
-
-// Finalize command
-greetCmd.finalize();
+  })
+  .finalize();
 
 // Parse and run
 cli.parse();
@@ -175,6 +173,10 @@ Set the command action.
 #### .command(name, description)
 
 Add a subcommand.
+
+### finalize()
+
+Adds the current command to its parent builder
 
 ## Advanced Usage
 

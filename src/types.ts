@@ -72,5 +72,6 @@ export interface CommandBuilder {
   command(name: string, description: string): CommandBuilder;
   parse(argv?: string[]): Promise<void>;
   showHelp(): void;
+  /**  Adds the current command to its parent builder */
   finalize(): void;
 }

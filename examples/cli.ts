@@ -14,7 +14,7 @@ cli.option("verbose", "Enable verbose output", { alias: "v", type: "boolean" });
 cli.option("config", "Path to config file", { type: "string" });
 
 // Add commands
-const buildCmd = cli
+cli
   .command("build", "Build the project")
   .option("output", "Output directory", {
     alias: "o",
@@ -32,9 +32,10 @@ const buildCmd = cli
     // Simulate build process
     await new Promise((resolve) => setTimeout(resolve, 1000));
     console.log("Build completed successfully!");
-  });
+  })
+  .finalize();
 
-const testCmd = cli
+cli
   .command("test", "Run tests")
   .option("coverage", "Generate coverage report", { type: "boolean" })
   .option("pattern", "Test file pattern", {
@@ -49,9 +50,10 @@ const testCmd = cli
     // Simulate test execution
     await new Promise((resolve) => setTimeout(resolve, 500));
     console.log("All tests passed!");
-  });
+  })
+  .finalize();
 
-const serveCmd = cli
+cli
   .command("serve", "Start development server")
   .option("port", "Port to listen on", {
     alias: "p",
@@ -64,9 +66,10 @@ const serveCmd = cli
     // Simulate server startup
     console.log("Server started successfully!");
     console.log(`Listening on http://${options.host}:${options.port}`);
-  });
+  })
+  .finalize();
 
-const greetCmd = cli
+cli
   .command("greet", "Greet someone")
   .argument("name", "Name to greet", { required: true })
   .option("style", "Greeting style", {
@@ -76,13 +79,8 @@ const greetCmd = cli
   .action(async (args, options) => {
     const greeting = options.style === "formal" ? "Hello" : "Hey";
     console.log(`${greeting}, ${args[0]}!`);
-  });
-
-// Finalize command
-serveCmd.finalize();
-greetCmd.finalize();
-buildCmd.finalize();
-testCmd.finalize();
+  })
+  .finalize();
 
 // Parse command line arguments
 cli.parse().catch(console.error);
