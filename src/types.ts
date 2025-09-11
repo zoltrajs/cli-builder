@@ -39,6 +39,10 @@ export interface ParsedArgs {
   args: string[];
 }
 
+export interface CLIBuilderOptions {
+  interactive?: boolean;
+}
+
 export interface CLIBuilder {
   command(name: string, description: string): CommandBuilder;
   option(
@@ -52,6 +56,7 @@ export interface CLIBuilder {
   parse(argv?: string[]): Promise<void>;
   showHelp(): void;
   addCommand(command: CLICommand): void;
+  setInteractive(interactive: boolean): CLIBuilder;
 }
 
 export interface CommandBuilder {

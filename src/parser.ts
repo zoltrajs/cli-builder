@@ -1,4 +1,5 @@
 import { CLIOption, CLIArgument, ParsedArgs } from "./types";
+import prompts from "prompts";
 
 export class ZoltraCLIParser {
   // Pre-compiled regexes for better performance
@@ -189,5 +190,61 @@ export class ZoltraCLIParser {
 
       argIndex++;
     }
+  }
+
+  static async validateOptions(parsed: ParsedArgs, options: CLIOption[], interactive: boolean = false): Promise<ParsedArgs> {
+    const missingOptions: CLIOption[] = [];
+    
+    // First, collect all missing required options
+    for (const option of options) {
+      if (option.required && parsed.options[option.name] === undefined) {
+        missingOptions.push(option);
+      }
+    }
+    
+    // If there are missing options and interactive mode is enabled, prompt for them
+    if (missingOptions.length > 0 && interactive) {
+      console.log("\nSome required options are missing. Please provide them:");
+      
+      for (const option of missingOptions) {
+        const promptType = option.type === 'boolean' ? 'confirm' : 'text';
+        const message = `${option.description} (--${option.name}${option.alias ? ` / -${option.alias}` : ''}):`;
+        
+        let initialValue;
+        if (option.default !== undefined) {
+          initialValue = option.default;
+        } else if (option.type === 'number') {
+          initialValue = 0;
+        } else if (option.type === 'boolean') {
+          initialValue = false;
+        } else if (option.type === 'array') {
+          initialValue = '';
+        } else {
+          initialValue = '';
+        }
+        
+        const response = await prompts({
+          type: promptType,
+          name: 'value',
+          message,
+          initial: initialValue
+        });
+        
+        if (response.value === undefined) {
+          // User cancelled the prompt
+          throw new Error(`Missing required option: --${option.name}${option.alias ? ` (-${option.alias})` : ''}`);
+        }
+        
+        // Parse the value according to the option type
+        parsed.options[option.name] = this.parseOptionValue(response.value, option);
+      }
+      
+      return parsed;
+    } else if (missingOptions.length > 0) {
+      // If not in interactive mode, throw an error for the first missing option
+      throw new Error(`Missing required option: --${missingOptions[0].name}${missingOptions[0].alias ? ` (-${missingOptions[0].alias})` : ''}`);
+    }
+    
+    return parsed;
   }
 }

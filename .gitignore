@@ -1,7 +1,5 @@
 *.tgz
 /dist
 /node_modules
-.releaserc.json
-*.cache
 tsconfig.tsbuildinfo
 *.html

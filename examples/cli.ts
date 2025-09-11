@@ -6,7 +6,8 @@ import { createCLI } from "../src/builder.js";
 const cli = createCLI(
   "fast-cli-builder",
   "1.0.0",
-  "A fast CLI builder for TypeScript applications"
+  "A fast CLI builder for TypeScript applications",
+  { interactive: true } // Enable interactive mode for required options
 );
 
 // Add global options
@@ -22,8 +23,16 @@ cli
     default: "./dist",
   })
   .option("watch", "Watch for changes", { alias: "w", type: "boolean" })
+  .option("mode", "Build mode (development or production)", {
+    alias: "m",
+    type: "string",
+    required: true,
+    choices: ["development", "production"]
+  })
   .action(async (args, options) => {
     console.log("Building project...");
+    console.log(`Build mode: ${options.mode}`);
+    
     if (options.verbose) {
       console.log("Verbose mode enabled");
       console.log("Output directory:", options.output);
@@ -31,7 +40,7 @@ cli
     }
     // Simulate build process
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log("Build completed successfully!");
+    console.log(`Build completed successfully in ${options.mode} mode!`);
   })
   .finalize();
 

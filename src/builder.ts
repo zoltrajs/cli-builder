@@ -4,6 +4,7 @@ import {
   CLICommand,
   CLIBuilder,
   CommandBuilder,
+  CLIBuilderOptions,
 } from "./types";
 import { ZoltraCLIParser } from "./parser.js";
 import chalk from "chalk";
@@ -14,11 +15,13 @@ export class ZoltraCLIBuilder implements CLIBuilder {
   private name: string;
   private version: string;
   private description: string | undefined;
+  private interactive: boolean = false;
 
-  constructor(name: string, version: string, description?: string) {
+  constructor(name: string, version: string, description?: string, options?: CLIBuilderOptions) {
     this.name = name;
     this.version = version;
     this.description = description;
+    this.interactive = options?.interactive || false;
 
     // Add default global options
     this.globalOptions.push(
@@ -71,6 +74,11 @@ export class ZoltraCLIBuilder implements CLIBuilder {
     return this;
   }
 
+  setInteractive(interactive: boolean): CLIBuilder {
+    this.interactive = interactive;
+    return this;
+  }
+
   async parse(argv: string[] = process.argv): Promise<void> {
     try {
       // Finalize any pending commands from command builders
@@ -114,62 +122,157 @@ export class ZoltraCLIBuilder implements CLIBuilder {
 
       // Validate arguments
       ZoltraCLIParser.validateArgs(commandParsed, command.arguments || []);
+      
+      // Validate required options with interactive prompts if enabled
+      const validatedParsed = await ZoltraCLIParser.validateOptions(
+        commandParsed, 
+        [...this.globalOptions, ...(command.options || [])],
+        this.interactive
+      );
 
-      await command.action(commandParsed.args, commandParsed.options);
+      await command.action(validatedParsed.args, validatedParsed.options);
     } catch (error) {
+      console.error(chalk.bold.red("ERROR") + " 🚫");
       console.error(
         chalk.red(
-          `Error: ${error instanceof Error ? error.message : String(error)}`
+          `${error instanceof Error ? error.message : String(error)}`
         )
       );
-      console.log("\nUse --help for usage information.");
+      
+      // Provide more helpful context based on error type
+      if (error instanceof Error) {
+        if (error.message.includes("Missing required")) {
+          console.log(chalk.yellow("\nRequired parameter missing. Check command usage below:"));
+          this.showCommandHelp(error.message.split(":")[1]?.trim() || "");
+        } else if (error.message.includes("Unknown command")) {
+          console.log(chalk.yellow("\nAvailable commands:"));
+          this.listCommands();
+        } else {
+          console.log(chalk.yellow("\nUse --help for usage information."));
+        }
+      } else {
+        console.log(chalk.yellow("\nUse --help for usage information."));
+      }
+      
       process.exit(1);
     }
   }
 
   showHelp(): void {
-    console.log(chalk.bold(`${this.name} v${this.version}`));
+    console.log(chalk.bold.blue(`${this.name} v${this.version}`));
     if (this.description) {
       console.log(this.description);
     }
     console.log();
 
     console.log(chalk.bold("Usage:"));
-    console.log(`  ${this.name} [command] [options]`);
+    console.log(`  ${chalk.cyan(this.name)} ${chalk.green("[command]")} ${chalk.yellow("[options]")}`);
     console.log();
 
+    this.listCommands();
+    this.showGlobalOptions();
+
+    console.log(
+      `Run '${chalk.cyan(this.name)} ${chalk.green("[command]")} ${chalk.yellow("--help")}' for more information about a command.`
+    );
+  }
+
+  listCommands(): void {
     if (this.commands.length > 0) {
       console.log(chalk.bold("Commands:"));
-      for (const command of this.commands) {
-        if (command.name) {
+      const commandList = this.commands
+        .filter(command => command.name) // Filter out default command
+        .map(command => {
           const aliases = command.aliases
             ? ` (${command.aliases.join(", ")})`
             : "";
-          console.log(
-            `  ${chalk.cyan(command.name)}${aliases}    ${command.description}`
-          );
-        }
-      }
+          const name = command.name.padEnd(15);
+          return `  ${chalk.green(name)}${chalk.dim(aliases)}  ${command.description}`;
+        });
+      
+      console.log(commandList.join("\n"));
       console.log();
     }
+  }
 
+  showGlobalOptions(): void {
     if (this.globalOptions.length > 0) {
       console.log(chalk.bold("Global Options:"));
-      for (const option of this.globalOptions) {
+      const optionList = this.globalOptions.map(option => {
         const flags = option.alias
           ? `-${option.alias}, --${option.name}`
           : `--${option.name}`;
-        const required = option.required ? " (required)" : "";
-        console.log(
-          `  ${chalk.yellow(flags)}    ${option.description}${required}`
-        );
-      }
+        const flagsFormatted = chalk.yellow(flags.padEnd(20));
+        const required = option.required ? chalk.red(" (required)") : "";
+        const defaultValue = option.default !== undefined 
+          ? chalk.dim(` (default: ${option.default})`) 
+          : "";
+        return `  ${flagsFormatted}${option.description}${required}${defaultValue}`;
+      });
+      
+      console.log(optionList.join("\n"));
+      console.log();
+    }
+  }
+
+  showCommandHelp(commandName: string): void {
+    const command = this.commands.find(
+      (cmd) => cmd.name === commandName || cmd.aliases?.includes(commandName)
+    );
+
+    if (!command) {
+      console.log(chalk.yellow(`Command '${commandName}' not found.`));
+      this.showHelp();
+      return;
+    }
+
+    console.log(chalk.bold.blue(`${this.name} - ${command.name}`));
+    console.log(command.description);
+    console.log();
+
+    console.log(chalk.bold("Usage:"));
+    const args = command.arguments?.map(arg => {
+      const required = arg.required ? "" : "[";
+      const requiredEnd = arg.required ? "" : "]";
+      const variadic = arg.variadic ? "..." : "";
+      return `${required}${variadic}${arg.name}${requiredEnd}`;
+    }).join(" ") || "";
+
+    console.log(`  ${chalk.cyan(this.name)} ${chalk.green(command.name)} ${chalk.yellow("[options]")} ${args}`);
+    console.log();
+
+    if (command.arguments && command.arguments.length > 0) {
+      console.log(chalk.bold("Arguments:"));
+      const argList = command.arguments.map(arg => {
+        const name = arg.name.padEnd(15);
+        const required = arg.required ? chalk.red(" (required)") : "";
+        const variadic = arg.variadic ? chalk.blue(" (variadic)") : "";
+        return `  ${chalk.green(name)}${arg.description}${required}${variadic}`;
+      });
+      
+      console.log(argList.join("\n"));
       console.log();
     }
 
-    console.log(
-      `Run '${this.name} [command] --help' for more information about a command.`
-    );
+    if (command.options && command.options.length > 0) {
+      console.log(chalk.bold("Command Options:"));
+      const optionList = command.options.map(option => {
+        const flags = option.alias
+          ? `-${option.alias}, --${option.name}`
+          : `--${option.name}`;
+        const flagsFormatted = chalk.yellow(flags.padEnd(20));
+        const required = option.required ? chalk.red(" (required)") : "";
+        const defaultValue = option.default !== undefined 
+          ? chalk.dim(` (default: ${option.default})`) 
+          : "";
+        return `  ${flagsFormatted}${option.description}${required}${defaultValue}`;
+      });
+      
+      console.log(optionList.join("\n"));
+      console.log();
+    }
+
+    this.showGlobalOptions();
   }
 }
 
@@ -264,7 +367,8 @@ export class ZoltraCommandBuilder implements CommandBuilder {
 export function createCLI(
   name: string,
   version: string,
-  description?: string
+  description?: string,
+  options?: CLIBuilderOptions
 ): CLIBuilder {
-  return new ZoltraCLIBuilder(name, version, description);
+  return new ZoltraCLIBuilder(name, version, description, options);
 }
