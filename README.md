@@ -1,6 +1,6 @@
 # Zoltra CLI Builder
 
-A fast and lightweight CLI builder for TypeScript applications with excellent performance and developer experience.
+A lightweight CLI builder for TypeScript applications with excellent performance and developer experience.
 
 ## Features
 
